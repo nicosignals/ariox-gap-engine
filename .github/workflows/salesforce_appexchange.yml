@@ -1,0 +1,45 @@
+name: Scrape Salesforce AppExchange
+
+on:
+  schedule:
+    # Weekly on Sunday at 6 AM UTC
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+    inputs:
+      scrape_limit:
+        description: 'Limit number of listings to scrape (0 = all)'
+        required: false
+        default: '0'
+        type: string
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run scraper
+        env:
+          CLAY_WEBHOOK_URL: ${{ secrets.CLAY_WEBHOOK_URL }}
+          SCRAPE_LIMIT: ${{ github.event.inputs.scrape_limit || '0' }}
+        run: python scrapers/salesforce_appexchange.py
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: salesforce-appexchange-data
+          path: salesforce_appexchange_*.json
+          retention-days: 30
+          if-no-files-found: warn

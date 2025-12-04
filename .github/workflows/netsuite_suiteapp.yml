@@ -1,0 +1,45 @@
+name: Scrape NetSuite SuiteApp
+
+on:
+  schedule:
+    # Weekly on Sunday at 8 AM UTC (staggered from other scrapers)
+    - cron: '0 8 * * 0'
+  workflow_dispatch:
+    inputs:
+      scrape_limit:
+        description: 'Limit number of apps to scrape (0 = all)'
+        required: false
+        default: '0'
+        type: string
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run scraper
+        env:
+          CLAY_WEBHOOK_URL: ${{ secrets.CLAY_WEBHOOK_URL }}
+          SCRAPE_LIMIT: ${{ github.event.inputs.scrape_limit || '0' }}
+        run: python scrapers/netsuite_suiteapp.py
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: netsuite-suiteapp-data
+          path: netsuite_suiteapp_*.json
+          retention-days: 30
+          if-no-files-found: warn
